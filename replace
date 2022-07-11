@@ -1,0 +1,30 @@
+#!/usr/bin/env fish 
+echo "CREATING MODULE RESOURCES"
+cd tm
+# terraform init
+terraform apply -input=false
+cd ..
+
+echo "CREATING WORSPACE RESOURCES"
+cd tw
+# terraform init
+terraform apply -input=false
+cd ..
+
+
+echo "DOWNLOADING TERRAFORM STATE FILES"
+aws s3 cp s3://tfstate-mhg/modules/terraform.tfstate terraform-mod.json
+aws s3 cp s3://tfstate-mhg/env:/prod/workspace/terraform.tfstate terraform-ws.json
+
+
+echo "REPLACING STRINGS IN FILE"
+
+sed -i 's/mhg-storage-mod/mhg-storage-wsp-prod/g' terraform-mod.json
+sed -i 's/module.storage-mod.aws_/aws_/g' ./terraform-mod.json
+sed -i 's/bucket-name/bucket_name/g' ./terraform-mod.json
+sed -i 's/module.storage-mod.data/data/g' ./terraform-mod.json
+sed -i 's/module.storage-mod.provider/provider/g' ./terraform-mod.json
+sed -i '/\"module\"/d' ./terraform-mod.json
+
+echo "COPYING MODULE FILE TO WORSPACE STATE STORAGE"
+aws s3 cp terraform-mod.json s3://tfstate-mhg/env:/prod/workspace/terraform.tfstate
